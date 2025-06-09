@@ -42,14 +42,14 @@ data/
 
 ```bash
 # 1. Placer le fichier CSV dans data/import/
-cp destinataires.csv data/import/
+cp <nom-fichier.csv> data/import/
 
 # 2. Lancer l'import
-php bin/console app:import-csv data/import/destinataires.csv
+php bin/console app:import-csv <nom-fichier.csv>
 
 # 3. Le fichier sera déplacé automatiquement :
-#    - Succès → data/processed/destinataires_YYYYMMDD_HHMMSS.csv
-#    - Erreur → data/error/destinataires_YYYYMMDD_HHMMSS.csv
+#    - Succès → data/processed/<nom-fichier>_YYYYMMDD_HHMMSS.csv
+#    - Erreur → data/error/<nom-fichier>_YYYYMMDD_HHMMSS.csv
 ```
 
 ### **Format CSV :**
