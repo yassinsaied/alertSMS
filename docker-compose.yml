@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+   php:
+      build: .
+      container_name: alertsms_php
+      volumes:
+         - .:/app
+      working_dir: /app
+      ports:
+         - '8000:8000'
+      depends_on:
+         - postgres
+      env_file:
+         - .env
+
+   postgres:
+      image: postgres:15
+      container_name: alertsms_postgres
+      environment:
+         POSTGRES_USER: ${DB_USER:-postgres}
+         POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+         POSTGRES_DB: ${DB_NAME:-alert_sms_db}
+      ports:
+         - '5432:5432'
+      volumes:
+         - postgres_data:/var/lib/postgresql/data
+
+   pgadmin:
+      image: dpage/pgadmin4
+      container_name: alertsms_pgadmin
+      environment:
+         PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
+         PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      ports:
+         - '5050:80'
+      depends_on:
+         - postgres
+
+volumes:
+   postgres_data:
