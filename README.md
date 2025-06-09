@@ -6,7 +6,7 @@ Application Symfony pour envoyer des alertes SMS géolocalisées par code INSEE.
 
 -  **PHP 8.3** + **Symfony 6.4** + **PostgreSQL 15** + **Docker** + **Messenger**
 
-## ⚡ Installation Rapide
+## Installation Rapide
 
 ```bash
 # 1. Cloner et démarrer
@@ -19,7 +19,7 @@ composer install
 php bin/console sql-migrations:execute
 ```
 
-## 🌐 Services
+## Services
 
 | Service           | URL                   | Identifiants            |
 | ----------------- | --------------------- | ----------------------- |
@@ -27,7 +27,7 @@ php bin/console sql-migrations:execute
 | **pgAdmin 4**     | http://localhost:5050 | admin@admin.com / admin |
 | **PostgreSQL 15** | localhost:5432        | postgres / postgres     |
 
-## 📂 Gestion des Fichiers CSV
+## Gestion des Fichiers CSV
 
 ### **Structure des dossiers :**
 
@@ -61,7 +61,7 @@ insee,telephone
 69001,0345678901
 ```
 
-## 🔄 Workflow Complet
+## Workflow Complet
 
 ```bash
 # 1. Import CSV
@@ -84,15 +84,22 @@ php bin/console messenger:consume async -vv
 curl "http://localhost:8000/alerter?insee=75001"
 ```
 
-## 📡 API
+## API
 
-### **POST/GET /alerter**
+### **POST/GET /alerter** 🔐
+
+**Authentification requise** : Clé API via header `X-API-KEY` ou paramètre `api_key`.
 
 ```bash
-curl "http://localhost:8000/alerter?insee=75001"
+# Avec header (recommandé)
+curl -H "X-API-KEY: your-api-key" \
+     "http://localhost:8000/alerter?insee=75001"
+
+# Avec paramètre
+curl "http://localhost:8000/alerter?insee=75001&api_key=your-api-key"
 ```
 
-**Réponse :**
+**Réponse (succès) :**
 
 ```json
 {
@@ -101,6 +108,15 @@ curl "http://localhost:8000/alerter?insee=75001"
 	"insee": "75001",
 	"destinataires_count": 2,
 	"messages_dispatched": 2
+}
+```
+
+**Réponse (erreur d'authentification) :**
+
+```json
+{
+	"success": false,
+	"message": "Clé API manquante. Utilisez le header X-API-KEY ou le paramètre api_key."
 }
 ```
 
@@ -118,15 +134,14 @@ php bin/console app:add-destinataire           # Ajout manuel
 # Production
 php bin/console messenger:consume async -vv
 
-# Debug
-php bin/console dbal:run-sql "SELECT * FROM destinataires;"
-php bin/console debug:router | grep alerter
-```
 
-## 🏗️ Architecture
+
+## Architecture
 
 ```
+
 CSV Import → Destinataires → Endpoint /alerter → Messenger Queue → SMS Service → Logs
+
 ```
 
 **4 parties :**
@@ -148,6 +163,5 @@ CSV Import → Destinataires → Endpoint /alerter → Messenger Queue → SMS S
 
 > **Note** : Variables d'environnement présentes dans `.env` uniquement pour ce test. En production, elles ne doivent pas être commitées dans le repository.
 
----
 
-**Prêt à l'emploi en 2 minutes !** 🚀
+```

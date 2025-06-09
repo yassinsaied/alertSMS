@@ -2,27 +2,35 @@
 
 namespace App\Controller;
 
-use App\Message\AlertMessage;  
+use App\Message\AlertMessage;
 use App\Repository\DestinataireRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Messenger\MessageBusInterface;  
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class AlertController extends AbstractController
 {
     public function __construct(
         private DestinataireRepository $destinataireRepository,
-        private MessageBusInterface $messageBus,  
-        private LoggerInterface $logger
+        private MessageBusInterface $messageBus,
+        private LoggerInterface $logger,
+        private ParameterBagInterface $parameterBag
     ) {
     }
 
     #[Route('/alerter', name: 'app_alerter', methods: ['GET', 'POST'])]
     public function alerter(Request $request): JsonResponse
     {
+        // Vérification de la clé API
+        $apiKeyValidation = $this->validateApiKey($request);
+        if ($apiKeyValidation !== null) {
+            return $apiKeyValidation;
+        }
+
         // Récupérer le code INSEE (GET ou POST)
         $insee = $request->get('insee') ?? $request->request->get('insee');
         
@@ -83,10 +91,10 @@ class AlertController extends AbstractController
 
             return $this->json([
                 'success' => true,
-                'message' => 'Alertes SMS programmees (asynchrone)',  
+                'message' => 'Alertes SMS programmees (asynchrone)',
                 'insee' => $insee,
                 'destinataires_count' => count($destinataires),
-                'messages_dispatched' => $dispatchedCount  
+                'messages_dispatched' => $dispatchedCount
             ]);
 
         } catch (\Exception $e) {
@@ -100,5 +108,49 @@ class AlertController extends AbstractController
                 'message' => 'Erreur interne du serveur'
             ], 500);
         }
+    }
+
+    /**
+     * Valide la clé API depuis le header X-API-KEY ou paramètre api_key
+     */
+    private function validateApiKey(Request $request): ?JsonResponse
+    {
+        // Récupérer la clé API attendue depuis la configuration
+        $expectedApiKey = $this->parameterBag->get('api_key');
+
+        // Récupérer la clé API de la requête (header ou paramètre)
+        $providedApiKey = $request->headers->get('X-API-KEY') 
+                         ?? $request->get('api_key') 
+                         ?? $request->request->get('api_key');
+
+        // Vérifier si la clé API est présente
+        if (empty($providedApiKey)) {
+            $this->logger->warning('Tentative d\'accès sans clé API', [
+                'ip' => $request->getClientIp(),
+                'user_agent' => $request->headers->get('User-Agent')
+            ]);
+
+            return $this->json([
+                'success' => false,
+                'message' => 'Clé API manquante. Utilisez le header X-API-KEY ou le paramètre api_key.'
+            ], 401);
+        }
+
+        // Vérifier si la clé API est valide
+        if (!hash_equals($expectedApiKey, $providedApiKey)) {
+            $this->logger->warning('Tentative d\'accès avec clé API invalide', [
+                'ip' => $request->getClientIp(),
+                'provided_key' => substr($providedApiKey, 0, 8) . '***',
+                'user_agent' => $request->headers->get('User-Agent')
+            ]);
+
+            return $this->json([
+                'success' => false,
+                'message' => 'Clé API invalide.'
+            ], 403);
+        }
+
+        // Clé API valide, continuer le traitement
+        return null;
     }
 }
